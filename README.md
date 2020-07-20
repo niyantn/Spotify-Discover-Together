@@ -2,7 +2,7 @@
 Choose a friend to discover brand new music with. We create an adventurous playlist curated to both of your tastes.
 
 ## Goal
-Analyze and synthesize 2 users' Spotify recent taste profiles so that we can create a playlist filled with brand new song recommendations for both of them to discover together. The playlist we curate will automatically end up in both of their spotify libraries. A novel way for people to socialize because the playlist is unique to them and can create a special experience for both to find new music together that matches their music tastes.
+Trustin and I analyzed and synthesize 2 users' Spotify recent taste profiles so that we can create a playlist filled with brand new song recommendations for both of them to discover together. The playlist we curate will automatically end up in both of their spotify libraries. A novel way for people to socialize because the playlist is unique to them and can create a special experience for both to find new music together that matches their music tastes.
 
 ## Data Collection
 We used Spotipy, a lightweight Python library for the Spotify Web API and created a Spotify Developers app to gain authorization to Spotify profile data. Here is the official Spotipy documentation: https://spotipy.readthedocs.io/en/2.13.0/
@@ -24,4 +24,4 @@ Once we got a list of songs for each cluster, we fed each list into Spotipy's re
 
 ## Conclusion
 <img src="Photos/created_playlist.png" width="800" > 
-Arjun and I were actually able to find hidden gems in the recommended playlist that we both enjoyed. Overall it was a success, and going forward we are looking to develop this idea into a functioning web app that anyone and his/her friend can use to find music together.
+Trustin and I found songs in the playlist that we both enjoyed and we thought matched both of our tastes in music. Trustin and I had commonalities in rap and electronic music and our algorithm was able to find the overlap in the subgenres within those that we enjoyed and found songs that were similar. Overall, our project was a success, and going forward we are looking to develop this idea into a functioning web app that anyone and their friend can use to find music together.
