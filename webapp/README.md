@@ -55,4 +55,4 @@ The shared user is redirected to the newly created playlist automatically
 
 ## Demo
 
-[![Watch the Demo video](demo.png)](https://youtu.be/vt5fpE0bzSY)
+[![Watch the Demo video](demo.gif)]
