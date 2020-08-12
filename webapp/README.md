@@ -55,4 +55,4 @@ The shared user is redirected to the newly created playlist automatically
 
 ## Demo
 
-![](demo.mp4)
+![]('./demo.mp4')
