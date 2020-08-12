@@ -52,3 +52,7 @@ The shared user is redirected to the newly created playlist automatically
    - contains the client id, secret and the routines to perform authentication
  - flask_spotify_auth.py
    - containes the underlying authentication code
+
+## Demo
+
+![](demo.mp4)
