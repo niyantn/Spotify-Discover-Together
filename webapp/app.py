@@ -3,12 +3,122 @@ import startup
 import spotipy
 import uuid
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.cluster import KMeans
+import random
+
 
 app = Flask(__name__)
 app.secret_key = 'the random string'
 sp = ''
 
 cache = []
+
+def cluster_algorithm(sp, u1_df, u2_df):
+    # Copied entire logic from https://github.com/arjunrreddy/Spotify-Discover-Together/blob/master/Spotify_Data_Manipulation_For_Website.ipynb
+    # return converted recommended list
+    temp = pd.concat([u1_df, u2_df])
+    temp.reset_index(drop=True,inplace=True)
+
+    # Extracts each users "Top 50 Tracks" Audio features
+    user1_list = []
+    for song in u1_df.song_uri.to_list():
+        row = pd.DataFrame(sp.audio_features(tracks=[song]))
+        user1_list.append(row)
+    user1_df = pd.concat(user1_list)
+
+    user2_list = []
+    for song in u2_df.song_uri.to_list():
+        row = pd.DataFrame(sp.audio_features(tracks=[song]))
+        user2_list.append(row)
+    user2_df = pd.concat(user2_list)
+
+    # Combine both users' top 50 songs into one dataframe of 100 songs
+    dfs = [user1_df, user2_df]
+    dfs = pd.concat(dfs)
+   
+    # Drop unnecessary features
+    dfs.drop(['type','track_href','analysis_url','time_signature','duration_ms','uri','instrumentalness','liveness','loudness','key','mode'],1,inplace=True)
+    dfs.set_index('id',inplace=True) 
+
+    # Normalize tempo feature
+    columns = ['danceability','energy','speechiness','acousticness','valence','tempo']
+    scaler = MinMaxScaler()
+    scaler.fit(dfs[columns])
+    dfs[columns] = scaler.transform(dfs[columns])
+
+    # Get 20 clusters from 100 songs
+    clusters = 20
+    kmeans = KMeans(n_clusters=clusters)
+    kmeans.fit(dfs)
+
+    scaler = MinMaxScaler()
+    scaled = scaler.fit_transform(dfs)
+    y_kmeans = kmeans.fit_predict(scaled)
+
+    # Updating dataframe with assigned clusters 
+    dfs['cluster'] = y_kmeans
+    dfs['artist'] = temp.artist.tolist()
+    dfs['title'] = temp.song.tolist()
+
+    # Removing clusters that only have one song in them
+    delete_clusters = []
+    cluster = 0
+    while cluster < (len(dfs.cluster.unique())-1):
+        if dfs.groupby('cluster').count().loc[cluster].danceability == 1:
+            delete_clusters.append(cluster)
+        cluster+=1
+    dfs.reset_index(inplace=True)
+
+    i = 0
+    while i < (len(dfs.cluster.unique())-1):
+        if dfs.loc[[i]].cluster.tolist()[0] in delete_clusters:
+            dfs.drop(i,0,inplace=True)
+        i+=1
+    dfs.set_index('id',inplace=True)
+
+    #Create list of lists of song ids to put into recommendation function
+    i=0
+    list_of_recs = [0]*len(dfs.groupby('cluster').count())
+    while i<len(dfs.groupby('cluster').count()):
+        list_of_recs[i] = dfs.loc[dfs['cluster'] == i].index.to_list()
+        i+=1
+    list_of_recs = [ele for ele in list_of_recs if ele != []]
+    print(list_of_recs)
+
+
+    # Adjust list for clusters so that each cluster has a maximum of 5 seed songs
+    j = 0
+    adj_list_of_recs = [0]*len(list_of_recs)
+    while j<len(list_of_recs):
+        if 0 < len(list_of_recs[j]) < 6:
+            adj_list_of_recs[j] = list_of_recs[j]
+        elif len(list_of_recs[j]) > 5:
+            adj_list_of_recs[j] = random.sample(list_of_recs[j], 5)
+        j += 1
+
+    #Getting 1 recommended song from each cluster with less than 4 songs, 2 recommended songs from each cluster with 4-5 songs
+    k = 0
+    list_of_recommendations = [0]*len(list_of_recs)
+    while k < len(list_of_recs):
+        if len(adj_list_of_recs[k]) < 4:
+            list_of_recommendations[k] = sp.recommendations(seed_tracks=adj_list_of_recs[k],limit=1)
+        else:
+            list_of_recommendations[k] = sp.recommendations(seed_tracks=adj_list_of_recs[k],limit=2)
+        k += 1
+    pd.json_normalize(list_of_recommendations[15], record_path='tracks').id
+    print (list_of_recommendations)
+
+    list_of_recommendations_converted = [0]*len(list_of_recs)
+    l = 0
+    while l < len(list_of_recs):
+        list_of_recommendations_converted.append(pd.json_normalize(list_of_recommendations[l], record_path='tracks').id.tolist())
+        l += 1
+
+    no_integers = [x for x in list_of_recommendations_converted if not isinstance(x, int)]
+    list_of_recommendations_converted = [item for elem in no_integers for item in elem]
+    return list_of_recommendations_converted
+
 
 # We store the User ID, and the username and write the tracks in json format to
 # file "<user_id>.json"
@@ -77,7 +187,7 @@ def callback():
         with open(F"{friend['filename']}", encoding='utf-8') as f:
             data = json.loads(f.read())
             friends_df = pd.DataFrame(data)
-        recommended_tracks = pd.concat([friends_df, my_top_50]).song_uri.to_list()
+        recommended_tracks = cluster_algorithm(sp, my_top_50, friends_df)
         print ("RECOMMENDED LIST :")
         print (recommended_tracks)
 
