@@ -6,7 +6,34 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
 import random
+from sqlalchemy import *
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 
+SQL_ENGINE = F"postgresql://discover:discover@localhost"
+Base = declarative_base()
+db = create_engine(F"{SQL_ENGINE}/discover")
+db.connect()
+db.echo = False
+Session = sessionmaker(bind=db)
+db_session = Session()
+
+class User(Base):
+    __tablename__ = "users",
+    id = Column(String, primary_key=True)
+    name = Column('name', String)
+    url = Column('url', String)
+
+    @classmethod
+    def find(cls, db_session, userid):
+        return db_session.query(cls).filter_by(id=userid).first()
+
+    @classmethod
+    def find_by_url(cls, db_session, url):
+        return db_session.query(cls).filter_by(url=url).first()
+
+# Create the users table if it does not exist here.
+Base.metadata.create_all(db)
 
 app = Flask(__name__)
 app.secret_key = 'the random string'
@@ -24,6 +51,7 @@ def cluster_algorithm(sp, u1_df, u2_df):
     user1_list = []
     for song in u1_df.song_uri.to_list():
         row = pd.DataFrame(sp.audio_features(tracks=[song]))
+        print(F"Adding audio features for {row}")
         user1_list.append(row)
     user1_df = pd.concat(user1_list)
 
@@ -124,22 +152,14 @@ def cluster_algorithm(sp, u1_df, u2_df):
 # file "<user_id>.json"
 def add_cache(user_id, username, df):
     u = uuid.uuid4().hex
-    filename = F"{user_id}.json"
-    matches = [ x for x in cache if x['id'] == user_id]
-    df.to_json(filename, force_ascii=False)
-    if len(matches) > 0 :
-        return matches[0]['url']
-    else:
-        cache.append({ "id": user_id, "name": username, "url": u, "filename": filename })
-        return u
+    user = User.find(db_session, user_id)
+    if not user:
+        db_session.add(User(id=user_id, name=username, url=u))
+        db_session.commit()
+        user = User.find(db_session, user_id)
 
-# Lookup to see if the url exists and return the user id of your friend
-def lookup_cache(url):
-    try:
-        user = [ x for x in cache if x['url'] == url ][0]
-        return user
-    except Exception as e:
-        return None
+    df.to_sql(username, db, if_exists="replace")
+    return user.url
 
 def prepare_track_pd(results):
     return pd.DataFrame ({
@@ -178,22 +198,26 @@ def callback():
         # We got here from a root / route
         uurl = add_cache(this_user['id'], this_user['display_name'], my_top_50)
         print (F"Created url {uurl} for user:")
-        return jsonify({ 'sharedurl': F'localhost:5000/shared/{uurl}', 'tracks': my_top_50.song.to_list() })
+        return jsonify({ 'sharedurl': F'http://discover-together.com/shared/{uurl}', 'tracks': my_top_50.song.to_list() })
 
     else:
         # Look up friend's track list using the url
-        friend = lookup_cache(session['state'])
-        friends_df = None
-        with open(F"{friend['filename']}", encoding='utf-8') as f:
-            data = json.loads(f.read())
-            friends_df = pd.DataFrame(data)
+        url = session['state']
+        friend = User.find_by_url(db_session, url)
+        if not friend:
+            return jsonify({ 'error': F"The shared url http://discover-together.com/shared/{url} does not belong to any friend."}, 500)
+
+        sql = F"select * from {friend.name}"
+        friends_df = pd.read_sql(sql, db)
+        print(friends_df)
+
         recommended_tracks = cluster_algorithm(sp, my_top_50, friends_df)
         print ("RECOMMENDED LIST :")
         print (recommended_tracks)
 
         # Create the discover playlist here.
         # We read all the users playlists to make sure we do not create a duplicate one
-        playlist_name = F"Spotify Discover Together ({friend['name']})"
+        playlist_name = F"Spotify Discover Together ({friend.name})"
         playlist_desc = F"Choose a friend to discover brand new music with. We create an adventurous playlist curated to both of your tastes!"
         my_playlists = sp.current_user_playlists()
         matches = [ play['id'] for play in my_playlists['items'] if play['name'] == playlist_name ]
@@ -204,7 +228,7 @@ def callback():
         else:
             playlist_id = create_playlist(sp, 
                                this_user['id'], 
-                               F"Spotify Discover Together ({friend['name']})", 
+                               F"Spotify Discover Together ({friend.name})", 
                                'Choose a friend to discover brand new music with. We create an adventurous playlist curated to both of your tastes!')
             print (F"Adding tracks to newly created playlist {playlist_id}")
             sp.user_playlist_add_tracks(this_user['id'], playlist_id, recommended_tracks, position=None)
@@ -217,4 +241,4 @@ def shared(url):
     response = startup.getUser()
     return redirect(response)
     
-app.run()
+app.run( "0.0.0.0", 80 )
