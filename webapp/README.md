@@ -5,6 +5,7 @@ This webapp uses postgressql as the backend database.
 
 ## Files
 
+```bash
 ├── README.md
 ├── app.py
 ├── app.sock
@@ -14,6 +15,7 @@ This webapp uses postgressql as the backend database.
 ├── startup.py
 └── templates
     └── test.html
+```
 
 ### flask_spotify_auth.py & startup.py
 Both these files are part of the Flask-Spotify-Auth module. startup.py defines the Spotify API components such as client id, secret, callback and scopes.
