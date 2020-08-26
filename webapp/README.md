@@ -17,16 +17,16 @@ This webapp uses postgressql as the backend database.
     └── test.html
 ```
 
-### flask_spotify_auth.py & startup.py
+#### flask_spotify_auth.py & startup.py
 Both these files are part of the Flask-Spotify-Auth module. startup.py defines the Spotify API components such as client id, secret, callback and scopes.
 
-### templates
+#### templates
 All HTML front-end templates can go into this directory and flask can serve them from there. You can move this to where the front-end developers feel comfortable
 
-### app.py
+#### app.py
 This is the main flask app that does all the logic. The Cluster logic has been copied into this as well.
 
-### app.sock
+#### app.sock
 Unix socket created as a passthrough for Gunicorn. See https://medium.com/faun/deploy-flask-app-with-nginx-using-gunicorn-7fda4f50066a for more details.
 
 ## Setup
