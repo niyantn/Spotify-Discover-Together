@@ -30,6 +30,13 @@ This is the main flask app that does all the logic. The Cluster logic has been c
 Unix socket created as a passthrough for Gunicorn. See https://medium.com/faun/deploy-flask-app-with-nginx-using-gunicorn-7fda4f50066a for more details.
 
 ## Setup
+
+The flask app is deployed on the Google VM Instance discover-together.com. After adding your SSH key to the metadata section, you can access this server @
+```
+ssh discover-together.com
+cd /home/Spotify-Discover-Together/webapp
+```
+
 The Flask webapp runs on localhost and port 5000.
 Nginx runs on discover-together.com:80 and forwards requests to Gunicorn via a unix socket proxied to the flask app @ localhost:5000
 Nginx (port 80) --> Gunicorn (app.sock) --> Flask app (port 5000)
