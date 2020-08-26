@@ -1,15 +1,46 @@
 # Webapp for Spotify-Discover-2gether
 
-This webapp is built using Python Flask and the Flask-Spotify-Auth (https://github.com/vanortg/Flask-Spotify-Auth)
+This webapp is built using Python Flask and the Flask-Spotify-Auth module that is found @  (https://github.com/vanortg/Flask-Spotify-Auth)
+This webapp uses postgressql as the backend database.
+
+## Files
+
+├── README.md
+├── app.py
+├── app.sock
+├── flask_spotify_auth.py
+├── newdemo.gif
+├── requirements.txt
+├── startup.py
+└── templates
+    └── test.html
+
+### flask_spotify_auth.py & startup.py
+Both these files are part of the Flask-Spotify-Auth module. startup.py defines the Spotify API components such as client id, secret, callback and scopes.
+
+### templates
+All HTML front-end templates can go into this directory and flask can serve them from there. You can move this to where the front-end developers feel comfortable
+
+### app.py
+This is the main flask app that does all the logic. The Cluster logic has been copied into this as well.
+
+### app.sock
+Unix socket created as a passthrough for Gunicorn. See https://medium.com/faun/deploy-flask-app-with-nginx-using-gunicorn-7fda4f50066a for more details.
 
 ## Setup
+The Flask webapp runs on localhost and port 5000.
+Nginx runs on discover-together.com:80 and forwards requests to Gunicorn via a unix socket proxied to the flask app @ localhost:5000
+Nginx (port 80) --> Gunicorn (app.sock) --> Flask app (port 5000)
 
-The webapp runs on localhost and port 5000.
 Use the following command to run the app.
+```
+sudo systemctl start app
+sudo chown discover:www-data /home/Spotify-Discover-Together/webapp/app.sock
+```
 
-```
-python3 app.py
-```
+## Logs
+Flask logs go into /var/log/discover/error.log
+Nginx logs go into /var/log/nginx/error.log
 
 ## Authentication when publishing
 
@@ -43,15 +74,6 @@ After authentication, the top 50 tracks for the logged in user are compiled into
 If the authentication is by the publisher, the dataframe is written to a json file and a unique url is generated for this user
 If the authentication is by the shared user, a lookup is done to fetch the top 50 tracks from the publisher's json file. These tracks are merged with the logged in user's top 50 tracks. These tracks are then written to a newly created playlist called "Spotifty Discover Together (<friend_name>)"
 The shared user is redirected to the newly created playlist automatically
-
-## File Structure
-
- - app.py 
-   - contains the flask webapp code and routes
- - startup.py
-   - contains the client id, secret and the routines to perform authentication
- - flask_spotify_auth.py
-   - containes the underlying authentication code
 
 ## Demo
 
