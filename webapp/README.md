@@ -34,10 +34,18 @@ The Flask webapp runs on localhost and port 5000.
 Nginx runs on discover-together.com:80 and forwards requests to Gunicorn via a unix socket proxied to the flask app @ localhost:5000
 Nginx (port 80) --> Gunicorn (app.sock) --> Flask app (port 5000)
 
-Use the following command to run the app.
+Use the following command to run the app. Replace <username> with the username of the account signing in.
 ```
 sudo systemctl start app
-sudo chown discover:www-data /home/Spotify-Discover-Together/webapp/app.sock
+sudo chown <username>:www-data /home/Spotify-Discover-Together/webapp/app.sock
+```
+
+If the service hangs at any moment, the following can be used to restart 
+```
+sudo systemctl stop app
+sudo systemctl start app
+sudo chown <username>:www-data /home/Spotify-Discover-Together/webapp/app.sock
+sudo service nginx restart
 ```
 
 ## Logs
