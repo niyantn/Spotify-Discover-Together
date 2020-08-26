@@ -3,6 +3,7 @@ import startup
 import spotipy
 import uuid
 import pandas as pd
+import logging
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
 import random
@@ -18,6 +19,18 @@ db.echo = False
 Session = sessionmaker(bind=db)
 db_session = Session()
 
+# Create the users table if it does not exist here.
+Base.metadata.create_all(db)
+app = Flask(__name__)
+app.secret_key = 'the random string'
+sp = ''
+cache = []
+
+if __name__ != '__main__':
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
+
 class User(Base):
     __tablename__ = "users",
     id = Column(String, primary_key=True)
@@ -32,14 +45,6 @@ class User(Base):
     def find_by_url(cls, db_session, url):
         return db_session.query(cls).filter_by(url=url).first()
 
-# Create the users table if it does not exist here.
-Base.metadata.create_all(db)
-
-app = Flask(__name__)
-app.secret_key = 'the random string'
-sp = ''
-
-cache = []
 
 def cluster_algorithm(sp, u1_df, u2_df):
     # Copied entire logic from https://github.com/arjunrreddy/Spotify-Discover-Together/blob/master/Spotify_Data_Manipulation_For_Website.ipynb
@@ -198,7 +203,7 @@ def callback():
         # We got here from a root / route
         uurl = add_cache(this_user['id'], this_user['display_name'], my_top_50)
         print (F"Created url {uurl} for user:")
-        return jsonify({ 'sharedurl': F'http://discover-together.com/shared/{uurl}', 'tracks': my_top_50.song.to_list() })
+        return jsonify({ 'username': this_user['display_name'],  'sharedurl': F'http://discover-together.com/shared/{uurl}', 'tracks': my_top_50.song.to_list() })
 
     else:
         # Look up friend's track list using the url
@@ -207,30 +212,30 @@ def callback():
         if not friend:
             return jsonify({ 'error': F"The shared url http://discover-together.com/shared/{url} does not belong to any friend."}, 500)
 
-        sql = F"select * from {friend.name}"
+        sql = F"select * from \"{friend.name}\""
         friends_df = pd.read_sql(sql, db)
         print(friends_df)
 
-        recommended_tracks = cluster_algorithm(sp, my_top_50, friends_df)
-        print ("RECOMMENDED LIST :")
-        print (recommended_tracks)
+        try:
+            recommended_tracks = cluster_algorithm(sp, my_top_50, friends_df)
+            print ("RECOMMENDED LIST :")
+            print (recommended_tracks)
+        except Exception as e:
+            return jsonify({ 'error': str(e), 'message': F"Failed to get recommended list, perhaps you dont have enough history" })
 
         # Create the discover playlist here.
         # We read all the users playlists to make sure we do not create a duplicate one
-        playlist_name = F"Spotify Discover Together ({friend.name})"
+        playlist_name = F"Spotify Discover Together ({friend.name} & {this_user['display_name']})"
         playlist_desc = F"Choose a friend to discover brand new music with. We create an adventurous playlist curated to both of your tastes!"
         my_playlists = sp.current_user_playlists()
         matches = [ play['id'] for play in my_playlists['items'] if play['name'] == playlist_name ]
         if len(matches):
             playlist_id = matches[0]
-            print (F"Adding tracks to existing playlist {playlist_id}")
+            app.logger.info (F"Adding tracks to existing playlist {playlist_id} - {playlist_name}")
             sp.user_playlist_replace_tracks(this_user['id'], playlist_id, recommended_tracks)
         else:
-            playlist_id = create_playlist(sp, 
-                               this_user['id'], 
-                               F"Spotify Discover Together ({friend.name})", 
-                               'Choose a friend to discover brand new music with. We create an adventurous playlist curated to both of your tastes!')
-            print (F"Adding tracks to newly created playlist {playlist_id}")
+            playlist_id = create_playlist(sp, this_user['id'], playlist_name, playlist_desc)
+            app.logger.info (F"Adding tracks to newly created playlist {playlist_id} - {playlist_name}")
             sp.user_playlist_add_tracks(this_user['id'], playlist_id, recommended_tracks, position=None)
 
         return redirect(F"https://open.spotify.com/playlist/{playlist_id}")
@@ -240,5 +245,7 @@ def shared(url):
     session['state'] = url
     response = startup.getUser()
     return redirect(response)
-    
-app.run( "0.0.0.0", 80 )
+
+if __name__ == '__main__':
+    app.run( host="0.0.0.0", debug=True )
+
