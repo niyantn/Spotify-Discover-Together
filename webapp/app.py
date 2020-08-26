@@ -16,8 +16,6 @@ Base = declarative_base()
 db = create_engine(F"{SQL_ENGINE}/discover")
 db.connect()
 db.echo = False
-Session = sessionmaker(bind=db)
-db_session = Session()
 
 # Create the users table if it does not exist here.
 Base.metadata.create_all(db)
@@ -155,13 +153,13 @@ def cluster_algorithm(sp, u1_df, u2_df):
 
 # We store the User ID, and the username and write the tracks in json format to
 # file "<user_id>.json"
-def add_cache(user_id, username, df):
+def add_cache(user_id, username, df, sess):
     u = uuid.uuid4().hex
-    user = User.find(db_session, user_id)
+    user = User.find(sess, user_id)
     if not user:
-        db_session.add(User(id=user_id, name=username, url=u))
-        db_session.commit()
-        user = User.find(db_session, user_id)
+        sess.add(User(id=user_id, name=username, url=u))
+        sess.commit()
+        user = User.find(sess, user_id)
 
     df.to_sql(username, db, if_exists="replace")
     return user.url
@@ -193,6 +191,8 @@ def index():
 def callback():
     tk = startup.getUserToken(request.args['code'])
     sp = spotipy.Spotify(tk)
+    Session = sessionmaker(bind=db)
+    db_session = Session()
 
     # Get current logged in user's handle and top 50 tracks
     this_user = sp.current_user()
@@ -201,7 +201,7 @@ def callback():
 
     if session['state'] == 'publish':
         # We got here from a root / route
-        uurl = add_cache(this_user['id'], this_user['display_name'], my_top_50)
+        uurl = add_cache(this_user['id'], this_user['display_name'], my_top_50, db_session)
         print (F"Created url {uurl} for user:")
         return jsonify({ 'username': this_user['display_name'],  'sharedurl': F'http://discover-together.com/shared/{uurl}', 'tracks': my_top_50.song.to_list() })
 
