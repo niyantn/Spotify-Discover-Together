@@ -2,7 +2,7 @@
 Choose a friend to discover brand new music with. We create an adventurous playlist curated to both of your tastes.
 
 ## Goal
-Trustin and I analyzed and synthesize 2 users' Spotify recent taste profiles so that we can create a playlist filled with brand new song recommendations for both of them to discover together. The playlist we curate will automatically end up in both of their spotify libraries. A novel way for people to socialize because the playlist is unique to them and can create a special experience for both to find new music together that matches their music tastes.
+Trustin, Niyant and I analyzed and synthesize 2 users' Spotify recent taste profiles so that we can create a playlist filled with brand new song recommendations for both of them to discover together. The playlist we curate will automatically end up in both of their spotify libraries. A novel way for people to socialize because the playlist is unique to them and can create a special experience for both to find new music together that matches their music tastes.
 
 ## Data Collection
 We used Spotipy, a lightweight Python library for the Spotify Web API and created a Spotify Developers app to gain authorization to Spotify profile data. Here is the official Spotipy documentation: https://spotipy.readthedocs.io/en/2.13.0/
